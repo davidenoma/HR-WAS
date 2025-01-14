@@ -40,7 +40,8 @@ print(len(gene_id_list))
 
 geneid_variant_dict={}
 ## Add trans by identified TF-gene associated eQTL
-##a set of the TF-cis-regulatory-variants was determined based on the eQTL analysis in both target tissues and whole blood samples using data from GTEx portal and eQTLGen(at a nominal p-value < 0.05). 
+##a set of the TF-cis-regulatory-variants was determined based on the eQTL analysis
+# in both target tissues and whole blood samples using data from GTEx portal and eQTLGen(at a nominal p-value < 0.05).
 with open("/PATH_TO/GTEx_Analysis_v8_eQTL/Breast_Mammary_Tissue.v8.signif_variant_gene_pairs.txt",'r') as eqtl_file:
     readeqtl = csv.reader(eqtl_file, delimiter='\t')
     header = next(readeqtl)

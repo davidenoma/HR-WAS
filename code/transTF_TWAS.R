@@ -33,8 +33,10 @@ data_trans_dir<-"/path/to/Trans_SNP/" ##Path to TF-based trans-variants file for
 # Make different snp_anno_file for 50k,100k...all_snp, contain all the overlapping variants between GTEx and GWAS that column with
 snp_annot <- read.table(snp_annot_file, header = T, stringsAsFactors = F,sep="\t")
 snp_annot$chrpos<-snp_annot$chr %&%"_"%&% snp_annot$pos
+
 full_snp_annot<- read.table(full_annot_file, header = T, stringsAsFactors = F,sep="\t")
 full_snp_annot$chrpos<-full_snp_annot$chr %&%"_"%&% full_snp_annot$pos
+
 gwassnp <- read.table(gwas_file,header=TRUE)
 gwas_snp<- gwassnp$chr%&%"_"%&%gwassnp$position
 snp_annot<-snp_annot[snp_annot$chrpos %in% gwas_snp,]
