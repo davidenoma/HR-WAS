@@ -7,6 +7,8 @@ import os
 select_gene_id = sys.argv[1]
 
 tss_file=open("/PATH_TO/TSS_Region_Estimate_Breast_Tissue.txt",'r')
+
+
 for line in tss_file:
     curr_geneid=line.split("\t")[0].strip()
     if curr_geneid == select_gene_id:
