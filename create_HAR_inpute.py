@@ -97,7 +97,7 @@ def main():
 
     print("Expanding HARs to ensure a minimum of 10 SNPs")
     expanded_hars = expand_hars(hars, genotype)
-    expanded_hars.to_csv('expanded_HARs.bed', sep='\t', index=False, header=False)
+    expanded_hars.to_csv('expanded_HARs.csv', sep=',', index=False, header=False)
 
     # print("Generating SNP annotation file")
     # snp_annotation_df = generate_snp_annotation_file(genotype, args.output_snp_annotation)
