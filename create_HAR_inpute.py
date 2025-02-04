@@ -80,17 +80,17 @@ def main():
     parser = argparse.ArgumentParser(description="Process genotype and HAR data.")
     parser.add_argument('--genotype', required=True, help="Input genotype file")
     parser.add_argument('--hars', required=True, help="Input HAR regions file")
-    parser.add_argument('--output_genotype', required=True, help="Output formatted genotype file")
-    parser.add_argument('--output_snp_annotation', required=True, help="Output SNP annotation file")
+    parser.add_argument('--output_genotype', required=False, help="Output formatted genotype file")
+    parser.add_argument('--output_snp_annotation', required=False, help="Output SNP annotation file")
 
     args = parser.parse_args()
-
-    print("Loading genotype data...")
-    genotype = load_genotype_data(args.genotype)
-
-    print("Generating formatted genotype file...")
-    formatted_genotype = generate_genotype_file(genotype, args.output_genotype)
-    print(f"Formatted genotype file saved as {args.output_genotype}")
+    #
+    # print("Loading genotype data...")
+    # genotype = load_genotype_data(args.genotype)
+    #
+    # print("Generating formatted genotype file...")
+    # formatted_genotype = generate_genotype_file(genotype, args.output_genotype)
+    # print(f"Formatted genotype file saved as {args.output_genotype}")
 
     print("Loading HAR data...")
     genotype, hars = load_har_data(args.genotype, args.hars)
@@ -99,9 +99,9 @@ def main():
     expanded_hars = expand_hars(hars, genotype)
     expanded_hars.to_csv('expanded_HARs.bed', sep='\t', index=False, header=False)
 
-    print("Generating SNP annotation file")
-    snp_annotation_df = generate_snp_annotation_file(genotype, args.output_snp_annotation)
-    print(f"SNP annotation file saved as {args.output_snp_annotation}")
+    # print("Generating SNP annotation file")
+    # snp_annotation_df = generate_snp_annotation_file(genotype, args.output_snp_annotation)
+    # print(f"SNP annotation file saved as {args.output_snp_annotation}")
 
 
 if __name__ == "__main__":
