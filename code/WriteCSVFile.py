@@ -3,7 +3,8 @@ import sys
 import os
 ## Choose a gene from "gencode.v26.GRCh38.genes.mapped.no_sex.csv"
 ## gencode.v26.GRCh38.genes.mapped.no_sex.csv contains: CHR,START,END,GENE_ID
-## We next characterized each gene potentially regulated by all possible susceptible TFs based on the evidence of their TF-DNA binding sites that are located in its flanking 20Kb of TSS
+## We next characterized each gene potentially regulated by all possible susceptible TFs based on the evidence
+# of their TF-DNA binding sites that are located in its flanking 20Kb of TSS
 select_gene_id = sys.argv[1]
 
 tss_file=open("/PATH_TO/TSS_Region_Estimate_Breast_Tissue.txt",'r')
@@ -93,7 +94,7 @@ for line in tf_lines[1:]:
 tf_file.close()
     
  ## First read GTEx genotype file,and start to write new csv file for the select_gene_id
-outcsvFile = open("./Gene_ID/"+select_gene_id+"/"+select_gene_id+".TF2TF_sel_trans.csv", "w")
+outcsvFile = open("./Gene_ID/"+select_gene_id+"/"+select_gene_id+".TF2TF_sel_trans.casv", "w")
 gtex_matchID_file = "/PATH_TO/GTEx_maf0.01/Breast_Female/GTEx_v8_866Indiv_maf0.01_breast_female_tped_chr"+target_chr+".num.overlap.csv"
 with open(gtex_matchID_file) as gtex_genotype_csv:
     readgtexCSV = csv.reader(gtex_genotype_csv, delimiter=',')

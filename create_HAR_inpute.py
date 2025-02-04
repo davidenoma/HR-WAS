@@ -1,107 +1,73 @@
 import pandas as pd
-import numpy as np
 import argparse
 
 
-# Load genotype dataset with quality control
-def load_genotype_data(input_file):
-    """Load genotype data and apply quality control."""
-    genotype = pd.read_csv(input_file, sep='\t', comment='#', header=None)
-    genotype.columns = ['CHR', 'LOC', 'ID'] + [f'IND-{i}' for i in range(genotype.shape[1] - 3)]
+# Load BIM file, HAR regions, and genotype data efficiently using chunks
 
-    # Apply quality control filters
-    genotype = genotype.dropna()
-    genotype = genotype[(genotype.iloc[:, 3:].apply(lambda x: x.isnull().mean(),
-                                                    axis=1) < 0.1)]  # Remove variants with >10% missingness
-
-    return genotype
+def load_har_bim_data(bim_file, hars_file):
+    """Load SNP metadata from BIM file and HAR region annotations."""
+    bim = pd.read_csv(bim_file, sep='\t', header=None, names=['CHR', 'SNP_ID', 'CM', 'LOC', 'A1', 'A2'])
+    hars = pd.read_csv(hars_file, sep='\t', header=None, names=['chrom', 'start', 'end', 'har_id'])
+    return bim, hars
 
 
-# Generate formatted genotype file
-def generate_genotype_file(genotype, output_file):
-    """Create a tissue-specific input genotype file with SNP IDs as columns."""
-    formatted_data = genotype.copy()
-    formatted_data = formatted_data.drop(columns=['ID'])
+# Process genotype file efficiently and filter relevant SNPs
 
-    # Convert genotype calls to numeric format (assuming 0,1,2 encoding)
-    formatted_data.iloc[:, 2:] = formatted_data.iloc[:, 2:].apply(pd.to_numeric, errors='coerce').fillna(0).astype(int)
+def process_genotype_file(geno_file, bim, hars, output_file, chunksize=100000):
+    """Process genotype data efficiently and extract relevant SNPs for HARs."""
+    with open(output_file, 'w') as out_f:
+        header_written = False
 
-    # Save the formatted file
-    formatted_data.to_csv(output_file, index=False)
-    return formatted_data
+        for chunk in pd.read_csv(geno_file, sep=',', chunksize=chunksize):
+            for _, har in hars.iterrows():
+                chrom = har['chrom']
+                start = har['start']
+                end = har['end']
+                har_id = har['har_id']
 
+                # Filter SNPs that fall within the HAR region
+                snps_in_region = bim[(bim['CHR'] == chrom) & (bim['LOC'].between(start, end))]
+                while len(snps_in_region) < 10:
+                    start -= 500  # Expand left
+                    end += 500  # Expand right
+                    snps_in_region = bim[(bim['CHR'] == chrom) & (bim['LOC'].between(start, end))]
 
-# Load and process HAR-related datasets
-def load_har_data(genotype_file, hars_file):
-    """Load genotype and HAR annotations"""
-    genotype = pd.read_csv(genotype_file, sep='\t', header=None, names=['CHR', 'ID', 'CM', 'LOC', 'A1', 'A2'])
-    hars = pd.read_csv(hars_file, sep='\t', header=None, names=['chrom', 'start', 'end', 'har_id'])  # HARs data
-    return genotype, hars
+                snp_ids = set(snps_in_region['SNP_ID'])
+                print(snp_ids)
+                chunk_filtered = chunk[chunk['ID'].isin(snp_ids)]
 
+                if chunk_filtered.empty:
+                    continue
 
-# Expand HARs to ensure at least 10 SNPs
-def expand_hars(hars, genotype):
-    """Expand HAR regions to left and right until they contain at least 10 SNPs."""
-    expanded_hars = []
-    for _, row in hars.iterrows():
-        chrom = row['chrom']
-        start = row['start']
-        end = row['end']
-        har_id = row['har_id']
+                # Rename SNP rows with HAR-SNP format
+                chunk_filtered.insert(0, 'HAR_SNP', har_id + '_' + chunk_filtered['ID'].astype(str))
+                chunk_filtered = chunk_filtered.drop(columns=['ID'])
 
-        # Ensure at least 10 SNPs in the region
-        snps_in_region = genotype[(genotype['CHR'] == chrom) & (genotype['LOC'].between(start, end))]
+                # Write header only once
+                if not header_written:
+                    chunk_filtered.to_csv(out_f, index=False, header=True, mode='w')
+                    header_written = True
+                else:
+                    chunk_filtered.to_csv(out_f, index=False, header=False, mode='a')
 
-        while len(snps_in_region) < 10:
-            start -= 500  # Expand left
-            end += 500  # Expand right
-            snps_in_region = genotype[(genotype['CHR'] == chrom) & (genotype['LOC'].between(start, end))]
-
-        expanded_hars.append([chrom, start, end, har_id])
-
-    return pd.DataFrame(expanded_hars, columns=['chrom', 'start', 'end', 'har_id'])
-
-
-# Generate SNP annotation file
-def generate_snp_annotation_file(genotype, output_file):
-    """Generate a SNP annotation file with top 50K regulatory variants."""
-    # Simulate filtering for top regulatory variants (sorting by CHR and LOC as a placeholder)
-    top_snps = genotype.sort_values(by=['CHR', 'LOC']).head(50000)
-
-    snp_annotation_df = top_snps[['ID', 'CHR', 'LOC', 'A1', 'A2']]
-    snp_annotation_df.columns = ['SNP', 'varID', 'chr', 'pos', 'ref', 'effect']
-
-    snp_annotation_df.to_csv(output_file, index=False)
-    return snp_annotation_df
+    print(f"Processed genotype file and saved output to {output_file}")
 
 
 # Main workflow
 def main():
-    parser = argparse.ArgumentParser(description="Process genotype and HAR data.")
-    parser.add_argument('--genotype', required=True, help="Input genotype file")
+    parser = argparse.ArgumentParser(description="Process genotype, HAR, and SNP data.")
+    parser.add_argument('--bim', required=True, help="Input BIM file (for SNP metadata)")
     parser.add_argument('--hars', required=True, help="Input HAR regions file")
-    parser.add_argument('--output_genotype', required=False, help="Output formatted genotype file")
-    parser.add_argument('--output_snp_annotation', required=False, help="Output SNP annotation file")
+    parser.add_argument('--genotype', required=True, help="Input genotype file (large CSV)")
+    parser.add_argument('--output', required=True, help="Output file for processed data")
 
     args = parser.parse_args()
-    #
-    # print("Loading genotype data...")
-    # genotype = load_genotype_data(args.genotype)
-    #
-    # print("Generating formatted genotype file...")
-    # formatted_genotype = generate_genotype_file(genotype, args.output_genotype)
-    # print(f"Formatted genotype file saved as {args.output_genotype}")
 
-    print("Loading HAR data...")
-    genotype, hars = load_har_data(args.genotype, args.hars)
+    print("Loading HAR and SNP metadata...")
+    bim, hars = load_har_bim_data(args.bim, args.hars)
 
-    print("Expanding HARs to ensure a minimum of 10 SNPs")
-    expanded_hars = expand_hars(hars, genotype)
-    expanded_hars.to_csv('expanded_HARs.csv', sep=',', index=False, header=False)
-
-    # print("Generating SNP annotation file")
-    # snp_annotation_df = generate_snp_annotation_file(genotype, args.output_snp_annotation)
-    # print(f"SNP annotation file saved as {args.output_snp_annotation}")
+    print("Processing genotype file efficiently...")
+    process_genotype_file(args.genotype, bim, hars, args.output)
 
 
 if __name__ == "__main__":
