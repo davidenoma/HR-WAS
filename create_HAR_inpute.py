@@ -155,7 +155,7 @@ def main():
     parser.add_argument('--hars', required=True, help="Input HAR regions file")
     parser.add_argument('--genotype', required=True, help="Input genotype file (large CSV)")
     parser.add_argument('--output_dir', required=True, help="Output directory for chromosome-wise processing")
-    parser.add_argument('--final_output', required=True, help="Final merged output file")
+    # parser.add_argument('--final_output', required=True, help="Final merged output file")
 
     args = parser.parse_args()
 
