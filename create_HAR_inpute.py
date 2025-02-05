@@ -11,19 +11,28 @@ def load_har_bim_data(bim_file, hars_file):
 
 
 # Process genotype file efficiently and filter relevant SNPs
-def process_genotype_file(geno_file, bim, hars, output_file, chunksize=100000):
+def process_genotype_file(geno_file, bim, hars, output_file, chunksize=500000):
     """Process genotype data efficiently and extract relevant SNPs for HARs."""
+    total_hars = len(hars)
+    print(f"Total HAR regions: {total_hars}")
+
     with open(output_file, 'w') as out_f:
         header_written = False
 
-        for chunk in pd.read_csv(geno_file, sep=',', chunksize=chunksize):
-            for _, har in hars.iterrows():
+        for chunk_idx, chunk in enumerate(pd.read_csv(geno_file, sep=',', chunksize=chunksize)):
+            print(f"Processing genotype chunk {chunk_idx + 1}...")
+            chunk = chunk.set_index('LOC')  # Optimize lookup by indexing LOC
+
+            for har_idx, (_, har) in enumerate(hars.iterrows(), start=1):
+                if har_idx % 100 == 0:
+                    print(f"Processed {har_idx}/{total_hars} HARs...")
+
                 chrom = har['chrom']
                 start = har['start']
                 end = har['end']
                 har_id = har['har_id']
 
-                # Filter SNPs that fall within the HAR region using LOC since genotype file has no SNP_ID
+                # Filter SNPs that fall within the HAR region
                 snps_in_region = bim[(bim['CHR'] == chrom) & (bim['LOC'].between(start, end))]
                 while len(snps_in_region) < 10:
                     start -= 500  # Expand left
@@ -31,17 +40,18 @@ def process_genotype_file(geno_file, bim, hars, output_file, chunksize=100000):
                     snps_in_region = bim[(bim['CHR'] == chrom) & (bim['LOC'].between(start, end))]
 
                 snp_locs = list(snps_in_region['LOC'])
-                chunk_filtered = chunk[chunk['LOC'].isin(snp_locs)]
+                chunk_filtered = chunk.loc[chunk.index.intersection(snp_locs)]
                 if chunk_filtered.empty:
                     continue
 
                 # Assign sequential numbers to SNPs within each HAR set
                 snp_numbering = {loc: i + 1 for i, loc in enumerate(snp_locs)}
-                chunk_filtered.insert(0, 'HAR_SNP', har_id + '_' + chunk_filtered['LOC'].map(snp_numbering).astype(str))
+                chunk_filtered.insert(0, 'HAR_SNP', har_id + '_' + chunk_filtered.index.map(snp_numbering).astype(str))
 
-                # Keep LOC and all individual genotype columns
-                columns_to_keep = ['HAR_SNP', 'LOC'] + [col for col in chunk_filtered.columns if col.startswith('ID-')]
-                chunk_filtered = chunk_filtered[columns_to_keep]
+                # Keep LOC and all original GTEX individual genotype columns
+                original_individual_columns = [col for col in chunk_filtered.columns if col.startswith("GTEX")]
+                columns_to_keep = ['HAR_SNP', 'LOC'] + original_individual_columns
+                chunk_filtered = chunk_filtered.reset_index()[columns_to_keep]
 
                 # Write header only once
                 if not header_written:
