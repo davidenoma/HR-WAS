@@ -150,21 +150,30 @@ def merge_chromosome_outputs(output_dir, final_output_file):
 
 # Main workflow
 def main():
-    parser = argparse.ArgumentParser(description="Process genotype, HAR, and SNP data in parallel by chromosome.")
+
+
+    parser = argparse.ArgumentParser(description="Process genotype data independently for each chromosome.")
     parser.add_argument('--bim', required=True, help="Input BIM file (for SNP metadata)")
     parser.add_argument('--hars', required=True, help="Input HAR regions file")
-    parser.add_argument('--genotype', required=True, help="Input genotype file (large CSV)")
-    parser.add_argument('--output_dir', required=True, help="Output directory for chromosome-wise processing")
-    # parser.add_argument('--final_output', required=True, help="Final merged output file")
+    parser.add_argument('--genotype_dir', required=True, help="Directory containing chromosome-wise genotype files")
+    parser.add_argument('--output_dir', required=True, help="Output directory for processed files")
 
     args = parser.parse_args()
+    bim, hars = pd.read_csv(args.bim, sep='\t', header=None,
+                            names=['CHR', 'SNP_ID', 'CM', 'LOC', 'A1', 'A2']), pd.read_csv(args.hars, sep='\t',
+                                                                                           header=None,
+                                                                                           names=['chrom', 'start',
+                                                                                                  'end', 'har_id'])
+    os.makedirs(args.output_dir, exist_ok=True)
 
-    print("Loadindg HAR and SNP metadata...")
-    bim, hars = load_har_bim_data(args.bim, args.hars)
+    genotype_files = sorted(
+        [os.path.join(args.genotype_dir, f) for f in os.listdir(args.genotype_dir) if f.endswith("_geno.csv")])
+    tasks = [
+        (geno_file, bim, hars, os.path.join(args.output_dir, os.path.basename(geno_file).replace("geno", "processed")))
+        for geno_file in genotype_files]
 
-    print("Splitting genotype file by chromosome...")
-    split_genotype_by_chr(args.genotype, args.output_dir)
-
+    with multiprocessing.Pool(processes=len(genotype_files)) as pool:
+        pool.starmap(process_genotype_file_per_chr2, tasks)
     # # Process each chromosome in parallel
     # pool = multiprocessing.Pool(processes=22)  # Run in parallel for 22 chromosomes
     # tasks = []
@@ -180,13 +189,7 @@ def main():
     #
     # print("Merging chromosome outputs...")
     # merge_chromosome_outputs(args.output_dir, args.final_output)
-    genotype_files = sorted(
-        [os.path.join(args.genotype_dir, f) for f in os.listdir(args.genotype_dir) if f.endswith("_geno.csv")])
-    tasks = [
-        (geno_file, bim, hars, os.path.join(args.output_dir, os.path.basename(geno_file).replace("geno", "processed")))
-        for geno_file in genotype_files]
-    with multiprocessing.Pool(processes=len(genotype_files)) as pool:
-        pool.starmap(process_genotype_file_per_chr2, tasks)
+
 
 if __name__ == "__main__":
     main()
