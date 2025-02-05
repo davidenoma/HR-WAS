@@ -83,6 +83,60 @@ def process_genotype_file_per_chr(chromosome, geno_file, bim, hars, output_file,
     print(f"Processed genotype file for chromosome {chromosome} and saved output to {output_file}")
 
 
+def process_genotype_file_per_chr2(geno_file, bim, hars, output_file, chunksize=500000):
+    """Process genotype data efficiently for a specific chromosome and extract relevant SNPs for HARs."""
+    chromosome = os.path.basename(geno_file).split('_')[0][3:]  # Extract chromosome number from filename
+    total_hars = len(hars)
+    print(f"Processing {geno_file} for chromosome {chromosome} with {total_hars} HAR regions...")
+
+    with open(output_file, 'w') as out_f:
+        header_written = False
+
+        for chunk in pd.read_csv(geno_file, sep=',', chunksize=chunksize):
+            chunk = chunk.set_index('LOC')  # Optimize lookup by indexing LOC
+
+            for har_idx, (_, har) in enumerate(hars.iterrows(), start=1):
+                if har_idx % 100 == 0:
+                    print(f"Processed {har_idx}/{total_hars} HARs for chromosome {chromosome}...")
+
+                if str(har['chrom']) != str(chromosome):
+                    continue
+
+                start = har['start']
+                end = har['end']
+                har_id = har['har_id']
+
+                # Filter SNPs that fall within the HAR region
+                snps_in_region = bim[(bim['CHR'] == int(chromosome)) & (bim['LOC'].between(start, end))]
+                while len(snps_in_region) < 10:
+                    start -= 500  # Expand left
+                    end += 500  # Expand right
+                    snps_in_region = bim[(bim['CHR'] == int(chromosome)) & (bim['LOC'].between(start, end))]
+
+                snp_locs = list(snps_in_region['LOC'])
+                chunk_filtered = chunk.loc[chunk.index.intersection(snp_locs)]
+                if chunk_filtered.empty:
+                    continue
+
+                # Assign sequential numbers to SNPs within each HAR set
+                snp_numbering = {loc: i + 1 for i, loc in enumerate(snp_locs)}
+                chunk_filtered.insert(0, 'HAR_SNP', har_id + '_' + chunk_filtered.index.map(snp_numbering).astype(str))
+
+                # Keep LOC and all original GTEX individual genotype columns
+                original_individual_columns = [col for col in chunk_filtered.columns if col.startswith("GTEX")]
+                columns_to_keep = ['HAR_SNP', 'LOC'] + original_individual_columns
+                chunk_filtered = chunk_filtered.reset_index()[columns_to_keep]
+
+                # Write header only once
+                if not header_written:
+                    chunk_filtered.to_csv(out_f, index=False, header=True, mode='w')
+                    header_written = True
+                else:
+                    chunk_filtered.to_csv(out_f, index=False, header=False, mode='a')
+
+    print(f"Processed {geno_file} and saved output to {output_file}")
+
+
 # Merge processed chromosome files into one final output
 def merge_chromosome_outputs(output_dir, final_output_file):
     """Merge all chromosome-specific processed files into a final output file."""
@@ -111,22 +165,28 @@ def main():
     print("Splitting genotype file by chromosome...")
     split_genotype_by_chr(args.genotype, args.output_dir)
 
-    # Process each chromosome in parallel
-    pool = multiprocessing.Pool(processes=22)  # Run in parallel for 22 chromosomes
-    tasks = []
-    for chrom in range(1, 23):
-        chr_geno_file = os.path.join(args.output_dir, f'chr{chrom}_geno.csv')
-        chr_output_file = os.path.join(args.output_dir, f'chr{chrom}_processed.csv')
-        if os.path.exists(chr_geno_file):
-            tasks.append((chrom, chr_geno_file, bim, hars, chr_output_file))
-
-    pool.starmap(process_genotype_file_per_chr, tasks)
-    pool.close()
-    pool.join()
-
-    print("Merging chromosome outputs...")
-    merge_chromosome_outputs(args.output_dir, args.final_output)
-
+    # # Process each chromosome in parallel
+    # pool = multiprocessing.Pool(processes=22)  # Run in parallel for 22 chromosomes
+    # tasks = []
+    # for chrom in range(1, 23):
+    #     chr_geno_file = os.path.join(args.output_dir, f'chr{chrom}_geno.csv')
+    #     chr_output_file = os.path.join(args.output_dir, f'chr{chrom}_processed.csv')
+    #     if os.path.exists(chr_geno_file):
+    #         tasks.append((chrom, chr_geno_file, bim, hars, chr_output_file))
+    #
+    # pool.starmap(process_genotype_file_per_chr, tasks)
+    # pool.close()
+    # pool.join()
+    #
+    # print("Merging chromosome outputs...")
+    # merge_chromosome_outputs(args.output_dir, args.final_output)
+    genotype_files = sorted(
+        [os.path.join(args.genotype_dir, f) for f in os.listdir(args.genotype_dir) if f.endswith("_geno.csv")])
+    tasks = [
+        (geno_file, bim, hars, os.path.join(args.output_dir, os.path.basename(geno_file).replace("geno", "processed")))
+        for geno_file in genotype_files]
+    with multiprocessing.Pool(processes=len(genotype_files)) as pool:
+        pool.starmap(process_genotype_file_per_chr2, tasks)
 
 if __name__ == "__main__":
     main()
