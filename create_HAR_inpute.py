@@ -43,8 +43,8 @@ def process_genotype_file(geno_file, bim, hars, output_file, chunksize=500000):
                 chunk_filtered = chunk.loc[chunk.index.intersection(snp_locs)]
                 if chunk_filtered.empty:
                     continue
-
-                # Assign sequential numbers to SNPs within each HAR set
+                print(snp_locs)
+                                # Assign sequential numbers to SNPs within each HAR set
                 snp_numbering = {loc: i + 1 for i, loc in enumerate(snp_locs)}
                 chunk_filtered.insert(0, 'HAR_SNP', har_id + '_' + chunk_filtered.index.map(snp_numbering).astype(str))
 
@@ -52,6 +52,7 @@ def process_genotype_file(geno_file, bim, hars, output_file, chunksize=500000):
                 original_individual_columns = [col for col in chunk_filtered.columns if col.startswith("GTEX")]
                 columns_to_keep = ['HAR_SNP', 'LOC'] + original_individual_columns
                 chunk_filtered = chunk_filtered.reset_index()[columns_to_keep]
+                print(chunk_filtered)
 
                 # Write header only once
                 if not header_written:
