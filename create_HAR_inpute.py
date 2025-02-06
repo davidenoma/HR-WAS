@@ -108,12 +108,15 @@ def process_genotype_file_per_chr2(geno_file, bim, hars, output_file, chunksize=
 
                 # Filter SNPs that fall within the HAR region
                 snps_in_region = bim[(bim['CHR'] == int(chromosome)) & (bim['LOC'].between(start, end))]
+                print(snps_in_region)
+                # snps_in_region =
                 while len(snps_in_region) < 10:
                     start -= 500  # Expand left
                     end += 500  # Expand right
                     snps_in_region = bim[(bim['CHR'] == int(chromosome)) & (bim['LOC'].between(start, end))]
 
-                snp_locs = list(snps_in_region['LOC'])
+                snp_locs = list(snps_in_region['SNP_ID'])
+                print(snp_locs)
                 chunk_filtered = chunk.loc[chunk.index.intersection(snp_locs)]
                 if chunk_filtered.empty:
                     continue
@@ -124,7 +127,7 @@ def process_genotype_file_per_chr2(geno_file, bim, hars, output_file, chunksize=
 
                 # Keep LOC and all original GTEX individual genotype columns
                 original_individual_columns = [col for col in chunk_filtered.columns if col.startswith("GTEX")]
-                columns_to_keep = ['HAR_SNP', 'LOC'] + original_individual_columns
+                columns_to_keep = ['HAR_SNP','CHR', 'LOC'] + original_individual_columns
                 chunk_filtered = chunk_filtered.reset_index()[columns_to_keep]
 
                 # Write header only once
