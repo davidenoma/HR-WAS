@@ -19,6 +19,8 @@ prefix<-"GTEx_Model_" %&% set
 
 snp_annot_file <- './path/to/SNP_Anno_' %&% set %&% '_chr' %&% chrom %&%'.txt'  ## i.e. SNP_Anno_50k_chr1.txt
 full_annot_file<-'./path/to/SNP_Anno_' %&% set %&% '_chr' %&% chrom %&%'.txt'  ## The annotation file for all the SNP
+
+
 gene_annot_file <- "/path/to/gencode.v26.GRCh38.genes.gtf" ## downloaded from GENCODE
 genotype_file <- "/path/to/GTEx_v8_866Indiv_maf0.01_Prostate_tped_chr"%&% chrom %&% ".num.csv" ## load tissue specific csv file from GTEx, with the CHR,LOC...
 covariance_genotype_dir<-"/path/to/main_dir/"
@@ -26,6 +28,7 @@ covariance_genotype_file <-"/path/to/GTEx_v8_866Indiv_maf0.01_tped_chr" %&% chro
 expression_file <- "/path/to/Breast_Mammary.v8.normalized_expression.no_sex.rm_covariates.bed" ## gene epxression bed file, seperated in tab
 covariates_file <- "GTEx_Cov_chr"%&% chrom %&% ".txt" ## To be notice: we used all SNP to calculate covariate
 gwas_file <- "/path/to/gwas_file/"
+
 data_trans_dir<-"/path/to/Trans_SNP/"
 
 
