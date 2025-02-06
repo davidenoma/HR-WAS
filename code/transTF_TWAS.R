@@ -26,7 +26,10 @@ covariance_genotype_file <-"/path/to/GTEx_v8_866Indiv_maf0.01_tped_chr" %&% chro
 expression_file <- "/path/to/Breast_Mammary.v8.normalized_expression.no_sex.rm_covariates.bed" ## gene epxression bed file, seperated in tab
 covariates_file <- "GTEx_Cov_chr"%&% chrom %&% ".txt" ## To be notice: we used all SNP to calculate covariate
 gwas_file <- "/path/to/gwas_file/"
-data_trans_dir<-"/path/to/Trans_SNP/" ##Path to TF-based trans-variants file for each Gene_ID
+data_trans_dir<-"/path/to/Trans_SNP/"
+
+
+##Path to TF-based trans-variants file for each Gene_ID
 
 #### II. load data  ######
 # snp_annot_file from GTEx-those variants that rank as top 50k
